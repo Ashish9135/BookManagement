@@ -15,6 +15,11 @@ int main() {
     catalog.emplace<Book>("B002", "The C++ Programming Language",
                           std::vector<std::string>{"Bjarne Stroustrup"}, "978-0321563842",
                           "Addison-Wesley", 2013, Money::of(1200), 4, Binding::Hardcover);
+    catalog.emplace<Book>("B003", "Hardcover Test",
+                       std::vector<std::string>{"Author"},
+                       "ISBN-HC", "Publisher", 2026,
+                       Money::of(100), 1,
+                       Binding::Hardcover);
     catalog.emplace<ElectronicResource>("R001", "IEEE Xplore Digital Library", "IEEE", 2026,
                                         Money::of(150), "https://ieeexplore.example",
                                         LicenseModel::AnnualSubscription, Money::of(2000));

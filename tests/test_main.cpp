@@ -47,6 +47,15 @@ static void testMoney() {
 static void testResourcesAndCost() {
     Book b("B1", "T", {"A", "B", "C"}, "isbn", "P", 2020, Money::of(100));
     CHECK(b.category() == ResourceCategory::Book);
+         Book hardcover("B-HC", "Hardcover Test",
+                   {"Author"}, "ISBN-HC",
+                   "Publisher", 2026,
+                   Money::of(100), 1,
+                   Binding::Hardcover);
+
+    CHECK(hardcover.binding() == Binding::Hardcover);
+    CHECK(hardcover.costFor(1) == Money::of(120));
+    CHECK(hardcover.costFor(5) == Money::of(600));
     CHECK(!b.isDigital());
     CHECK(b.costFor(3) == Money::of(300));
     CHECK_THROWS(b.costFor(0), std::invalid_argument);
