@@ -15,7 +15,8 @@ const ResourceCategory kAllCategories[] = {ResourceCategory::Book,
                                            ResourceCategory::Journal,
                                            ResourceCategory::EBook,
                                            ResourceCategory::AudioBook,
-                                           ResourceCategory::Thesis};
+                                           ResourceCategory::Thesis,
+                                           ResourceCategory::Magazine};
 }
 
 Budget::Budget(Money total) : total_(total) {

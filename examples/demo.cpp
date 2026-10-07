@@ -32,6 +32,9 @@ int main() {
 
     catalog.emplace<Thesis>("T001", "AI Research", "IIT Delhi",
                              "M.Tech", "Dr. Sharma", 2026);
+    catalog.emplace<Magazine>("M001", "Tech Monthly", "ISSN-1234",
+                               12, 2, "Tech Publisher", 2026,
+                               Money::of(100), Money::of(10));
     std::cout << "=== Catalog ===\n";
     for (const Resource* r : catalog.all()) std::cout << r->summary() << "\n";
 

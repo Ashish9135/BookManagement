@@ -92,6 +92,19 @@ static void testResourcesAndCost() {
     CHECK(thesis.university() == "IIT Delhi");
     CHECK(thesis.degree() == "M.Tech");
     CHECK(thesis.supervisor() == "Dr. Sharma");
+    Magazine magazine("M1", "Tech Monthly", "ISSN-1234",
+                      12, 2, "Tech Publisher", 2026,
+                      Money::of(100), Money::of(10));
+
+    CHECK(magazine.category() == ResourceCategory::Magazine);
+    CHECK(magazine.issuesPerYear() == 12);
+    CHECK(magazine.subscriptionYears() == 2);
+    CHECK(magazine.postagePerIssue() == Money::of(10));
+
+    // Journal cost = 100 × 2 copies × 2 years = 400
+    // Postage = 10 × 12 issues × 2 years × 2 copies = 480
+    // Total = 880
+    CHECK(magazine.costFor(2) == Money::of(880));
 
     ElectronicResource e("R1", "DB", "P", 2026, Money::of(10), "url",
                          LicenseModel::AnnualSubscription, Money::of(100));

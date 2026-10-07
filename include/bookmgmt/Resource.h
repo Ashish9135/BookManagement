@@ -16,7 +16,7 @@ namespace bookmgmt {
 // EXTENSION POINT: when adding a new resource type, add a category here,
 // a matching name in categoryName() (Resource.cpp) and an entry in
 // kAllCategories (Budget.cpp).
-enum class ResourceCategory { Book, ElectronicResource, Journal, EBook, AudioBook, Thesis };
+enum class ResourceCategory { Book, ElectronicResource, Journal, EBook, AudioBook, Thesis, Magazine };
 
 const char* categoryName(ResourceCategory c);
 
