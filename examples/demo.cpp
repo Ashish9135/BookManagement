@@ -21,6 +21,8 @@ int main() {
     catalog.emplace<ElectronicResource>("R002", "MATLAB Campus Licence", "MathWorks", 2026,
                                         Money::of(400), "https://licensing.example/matlab",
                                         LicenseModel::Perpetual);
+    catalog.emplace<Journal>("J001", "Nature", "2049-3630", 12, 2,
+                             "Springer Nature", 2025, Money::of(500));
 
     std::cout << "=== Catalog ===\n";
     for (const Resource* r : catalog.all()) std::cout << r->summary() << "\n";

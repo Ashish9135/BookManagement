@@ -51,6 +51,18 @@ static void testResourcesAndCost() {
     CHECK(b.costFor(3) == Money::of(300));
     CHECK_THROWS(b.costFor(0), std::invalid_argument);
     CHECK(joinAuthors(b.authors()) == "A, B and C");
+        Journal j("J1", "Nature", "1234-5678", 12, 2,
+              "Springer", 2025, Money::of(50));
+
+    CHECK(j.category() == ResourceCategory::Journal);
+    CHECK(j.costFor(3) == Money::of(300));
+    CHECK_THROWS(j.costFor(0), std::invalid_argument);
+    CHECK(j.issn() == "1234-5678");
+    CHECK(j.issuesPerYear() == 12);
+    CHECK(j.subscriptionYears() == 2);
+    CHECK_THROWS(Journal("J2", "Science", "1111-2222", 12, 0,
+                         "Publisher", 2025, Money::of(50)),
+                 std::invalid_argument);
 
     ElectronicResource e("R1", "DB", "P", 2026, Money::of(10), "url",
                          LicenseModel::AnnualSubscription, Money::of(100));
