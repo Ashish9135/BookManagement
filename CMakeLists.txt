@@ -10,6 +10,7 @@ add_library(bookmgmt
     src/Resource.cpp
     src/Book.cpp
     src/Journal.cpp
+    src/EBook.cpp
     src/ElectronicResource.cpp
     src/Budget.cpp
     src/Catalog.cpp

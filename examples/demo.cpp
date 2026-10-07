@@ -1,6 +1,6 @@
 // Demo: builds a small catalog, sets a budget with per-category quotas,
 // and runs a batch of purchase requests through the acquisition manager.
-
+// MT26117_ASHISH
 #include <iostream>
 
 #include "bookmgmt/bookmgmt.h"
@@ -23,6 +23,10 @@ int main() {
                                         LicenseModel::Perpetual);
     catalog.emplace<Journal>("J001", "Nature", "2049-3630", 12, 2,
                              "Springer Nature", 2025, Money::of(500));
+    catalog.emplace<EBook>("E001", "Modern C++",std::vector<std::string>{"A", "B"},
+                           "978-1234567890", EBookFormat::EPUB, true,
+                           "Publisher", 2025, Money::of(100),
+                           "https://ebook.example");
 
     std::cout << "=== Catalog ===\n";
     for (const Resource* r : catalog.all()) std::cout << r->summary() << "\n";
@@ -32,7 +36,7 @@ int main() {
     Budget budget(Money::of(20000));
     budget.setQuota(ResourceCategory::Book, {10, Money::of(8000)});
     budget.setQuota(ResourceCategory::ElectronicResource, {40, Money::of(12000)});
-
+    budget.setQuota(ResourceCategory::EBook, {20, Money::of(3000)});
     AcquisitionManager acq(catalog, budget);
 
     std::cout << "\n=== Quotes ===\n";

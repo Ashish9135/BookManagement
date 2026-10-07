@@ -51,7 +51,7 @@ static void testResourcesAndCost() {
     CHECK(b.costFor(3) == Money::of(300));
     CHECK_THROWS(b.costFor(0), std::invalid_argument);
     CHECK(joinAuthors(b.authors()) == "A, B and C");
-        Journal j("J1", "Nature", "1234-5678", 12, 2,
+    Journal j("J1", "Nature", "1234-5678", 12, 2,
               "Springer", 2025, Money::of(50));
 
     CHECK(j.category() == ResourceCategory::Journal);
@@ -63,6 +63,17 @@ static void testResourcesAndCost() {
     CHECK_THROWS(Journal("J2", "Science", "1111-2222", 12, 0,
                          "Publisher", 2025, Money::of(50)),
                  std::invalid_argument);
+    EBook eb("E1", "Modern C++", {"A", "B"}, "978-1234567890",
+             EBookFormat::EPUB, true, "Publisher", 2025,
+             Money::of(100), "https://ebook.example");
+
+    CHECK(eb.category() == ResourceCategory::EBook);
+    CHECK(eb.isDigital());
+    CHECK(eb.costFor(3) == Money::of(300));
+    CHECK(eb.authors().size() == 2);
+    CHECK(eb.isbn() == "978-1234567890");
+    CHECK(eb.format() == EBookFormat::EPUB);
+    CHECK(eb.drmProtected());
 
     ElectronicResource e("R1", "DB", "P", 2026, Money::of(10), "url",
                          LicenseModel::AnnualSubscription, Money::of(100));

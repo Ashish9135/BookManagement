@@ -1,3 +1,4 @@
+// MT26117_ASHISH
 #pragma once
 // Resource: abstract base class for every item the library can hold or buy.
 //
@@ -15,7 +16,7 @@ namespace bookmgmt {
 // EXTENSION POINT: when adding a new resource type, add a category here,
 // a matching name in categoryName() (Resource.cpp) and an entry in
 // kAllCategories (Budget.cpp).
-enum class ResourceCategory { Book, ElectronicResource, Journal };
+enum class ResourceCategory { Book, ElectronicResource, Journal, EBook };
 
 const char* categoryName(ResourceCategory c);
 
