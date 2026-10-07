@@ -1,5 +1,5 @@
 // Minimal self-contained test runner (no external framework needed).
-
+// MT26117_ASHISH
 #include <iostream>
 #include <sstream>
 #include <stdexcept>
@@ -74,6 +74,24 @@ static void testResourcesAndCost() {
     CHECK(eb.isbn() == "978-1234567890");
     CHECK(eb.format() == EBookFormat::EPUB);
     CHECK(eb.drmProtected());
+        AudioBook audio("A1", "C++ Audio Guide", "Audio Publisher", 2026,
+                    Money::of(200), "John Smith", 180);
+
+    CHECK(audio.category() == ResourceCategory::AudioBook);
+    CHECK(!audio.isDigital());
+    CHECK(audio.costFor(2) == Money::of(400));
+    CHECK(audio.narrator() == "John Smith");
+    CHECK(audio.durationMinutes() == 180);
+
+    Thesis thesis("T1", "AI Research", "IIT Delhi",
+                  "M.Tech", "Dr. Sharma", 2026);
+
+    CHECK(thesis.category() == ResourceCategory::Thesis);
+    CHECK(!thesis.isDigital());
+    CHECK(thesis.costFor(1) == Money{});
+    CHECK(thesis.university() == "IIT Delhi");
+    CHECK(thesis.degree() == "M.Tech");
+    CHECK(thesis.supervisor() == "Dr. Sharma");
 
     ElectronicResource e("R1", "DB", "P", 2026, Money::of(10), "url",
                          LicenseModel::AnnualSubscription, Money::of(100));

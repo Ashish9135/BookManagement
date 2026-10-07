@@ -27,7 +27,11 @@ int main() {
                            "978-1234567890", EBookFormat::EPUB, true,
                            "Publisher", 2025, Money::of(100),
                            "https://ebook.example");
+    catalog.emplace<AudioBook>("A001", "C++ Audio Guide", "Audio Publisher",
+                                2026, Money::of(200), "John Smith", 180);
 
+    catalog.emplace<Thesis>("T001", "AI Research", "IIT Delhi",
+                             "M.Tech", "Dr. Sharma", 2026);
     std::cout << "=== Catalog ===\n";
     for (const Resource* r : catalog.all()) std::cout << r->summary() << "\n";
 
