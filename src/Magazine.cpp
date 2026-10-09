@@ -18,11 +18,21 @@ Magazine::Magazine(std::string id, std::string title, std::string issn,
 Money Magazine::costFor(int copies) const {
     requirePositive(copies);
 
-    Money journalCost = Journal::costFor(copies);
-    Money postageCost =
-        postagePerIssue() * (issuesPerYear() * subscriptionYears() * copies);
+    Money totalCost =
+        unitPrice() * (copies * subscriptionYears());
 
-    return journalCost + postageCost;
+    Money postageCost =
+        postagePerIssue() *
+        (issuesPerYear() * subscriptionYears() * copies);
+
+    totalCost = totalCost + postageCost;
+
+    if (copies >= 10) {
+        totalCost = Money::fromMinor(
+            (totalCost.minorUnits() * 90 + 50) / 100);
+    }
+
+    return totalCost;
 }
 
 void Magazine::printDetails(std::ostream& os) const {

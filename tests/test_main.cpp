@@ -56,6 +56,10 @@ static void testResourcesAndCost() {
     CHECK(hardcover.binding() == Binding::Hardcover);
     CHECK(hardcover.costFor(1) == Money::of(120));
     CHECK(hardcover.costFor(5) == Money::of(600));
+// Q6: 10% bulk discount for 10 or more print copies.
+    CHECK(b.costFor(9) == Money::of(900));
+    CHECK(b.costFor(10) == Money::of(900));
+    CHECK(hardcover.costFor(10) == Money::of(1080));
     CHECK(!b.isDigital());
     CHECK(b.costFor(3) == Money::of(300));
     CHECK_THROWS(b.costFor(0), std::invalid_argument);
@@ -79,6 +83,17 @@ static void testResourcesAndCost() {
     CHECK(eb.category() == ResourceCategory::EBook);
     CHECK(eb.isDigital());
     CHECK(eb.costFor(3) == Money::of(300));
+        // Q6: Electronic seats beyond the 50th cost half price.
+    CHECK(eb.costFor(50) == Money::of(5000));
+    CHECK(eb.costFor(51) == Money::of(5050));
+    CHECK(eb.costFor(60) == Money::of(5500));
+        // Platform fee is added once, including when tiered seat pricing applies.
+    ElectronicResource tiered("ER-Q6", "Tiered Test", "Publisher", 2026,
+                              Money::of(100), "https://example.com",
+                              LicenseModel::AnnualSubscription,
+                              Money::of(2000));
+    CHECK(tiered.costFor(50) == Money::of(7000));
+    CHECK(tiered.costFor(51) == Money::of(7050));
     CHECK(eb.authors().size() == 2);
     CHECK(eb.isbn() == "978-1234567890");
     CHECK(eb.format() == EBookFormat::EPUB);

@@ -30,7 +30,13 @@ Money Book::costFor(int copies) const {
     Money cost = unitPrice() * copies;
 
     if (binding_ == Binding::Hardcover) {
-        cost = cost * 1.20;
+        cost = Money::fromMinor(
+            (cost.minorUnits() * 120 + 50) / 100);
+    }
+
+    if (copies >= 10) {
+        cost = Money::fromMinor(
+            (cost.minorUnits() * 90 + 50) / 100);
     }
 
     return cost;
