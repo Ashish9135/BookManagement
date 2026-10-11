@@ -3,6 +3,8 @@
 // Budget's quotas, updating Catalog holdings and keeping an order history.
 
 #include <iosfwd>
+#include <map>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -31,6 +33,8 @@ struct PurchaseRecord {
 class AcquisitionManager {
 public:
     AcquisitionManager(Catalog& catalog, Budget& budget, int printTaxPercent = 5, int electronicTaxPercent = 18);
+    void setTitleLimit(ResourceCategory category, int limit);
+    std::optional<int> titleLimitFor(ResourceCategory category) const;
 
     // Price of a request without buying anything. Throws NotFoundError.
     Money quote(const std::string& id, int quantity) const;
@@ -62,6 +66,7 @@ private:
 
     Catalog& catalog_;
     Budget& budget_;
+    std::map<ResourceCategory, int> titleLimits_;
     int printTaxPercent_;
     int electronicTaxPercent_;
     std::vector<PurchaseRecord> history_;

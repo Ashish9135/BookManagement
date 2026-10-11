@@ -11,6 +11,17 @@ namespace bookmgmt {
 AcquisitionManager::AcquisitionManager(Catalog& catalog, Budget& budget, int printTaxPercent, int electronicTaxPercent)
     : catalog_(catalog), budget_(budget), printTaxPercent_(printTaxPercent), electronicTaxPercent_(electronicTaxPercent) {}
 
+void AcquisitionManager::setTitleLimit(ResourceCategory category, int limit) {
+    if (limit < 0) throw std::invalid_argument("title limit must not be negative");
+    titleLimits_[category] = limit;
+}
+
+std::optional<int> AcquisitionManager::titleLimitFor(ResourceCategory category) const {
+    auto it = titleLimits_.find(category);
+    if (it == titleLimits_.end()) return std::nullopt;
+    return it->second;
+}
+
 Money AcquisitionManager::quote(const std::string& id, int quantity) const {
     return catalog_.get(id).costFor(quantity);
 }
@@ -31,15 +42,61 @@ bool AcquisitionManager::canPurchase(const std::string& id, int quantity,
                                      std::string* reason) const {
     std::string why;
     if (const Resource* r = catalog_.find(id)) {
-        if (quantity <= 0)
+        if (quantity <= 0) {
             why = "quantity must be positive";
-        else
-            why = budget_.check(r->category(), quantity, r->costFor(quantity));
+        } else {
+            bool titleExists = false;
+            for (const auto& rec : history_) {
+                if (rec.approved && rec.category == r->category() && rec.title == r->title()) {
+                    titleExists = true;
+                    break;
+                }
+            }
+            int differentTitles = 0;
+            for (const auto& rec : history_) {
+                if (rec.approved && rec.category == r->category()) {
+                    bool firstOccurrence = true;
+                    for (const auto& earlier : history_) {
+                        if (earlier.orderNo >= rec.orderNo) break;
+                        if (earlier.approved && earlier.category == rec.category && earlier.title == rec.title) {
+                            firstOccurrence = false;
+                            break;
+                        }
+                    }
+                    if (firstOccurrence) ++differentTitles;
+                }
+            }
+            auto limit = titleLimitFor(r->category());
+            if (limit && !titleExists && differentTitles >= *limit) {
+                why = std::string(categoryName(r->category())) + " title limit exceeded";
+            } else {
+                why = budget_.check(r->category(), quantity, r->costFor(quantity));
+            }
+        }
     } else {
         why = "resource not found: " + id;
     }
     if (reason) *reason = why;
     return why.empty();
+}
+
+
+const PurchaseRecord& AcquisitionManager::purchase(const std::string& id, int quantity) {
+    const Resource& r = catalog_.get(id);
+    std::string reason;
+    if (!canPurchase(id, quantity, &reason)) {
+        if (reason.find("title limit exceeded") != std::string::npos)
+            throw QuotaExceededError(reason);
+        if (quantity <= 0)
+            throw std::invalid_argument(reason);
+        if (reason.find("budget exceeded") != std::string::npos)
+            throw BudgetExceededError(reason);
+        throw QuotaExceededError(reason);
+    }
+    const Money cost = r.costFor(quantity);
+    budget_.commit(r.category(), quantity, cost);
+    catalog_.addHoldings(id, quantity);
+    return record(&r, id, quantity, cost, true, {});
 }
 
 PurchaseRecord& AcquisitionManager::record(const Resource* r, const std::string& id,
@@ -50,14 +107,6 @@ PurchaseRecord& AcquisitionManager::record(const Resource* r, const std::string&
         r ? r->category() : ResourceCategory::Book, qty, cost, r ? r->isDigital() : false, approved,
         std::move(reason)});
     return history_.back();
-}
-
-const PurchaseRecord& AcquisitionManager::purchase(const std::string& id, int quantity) {
-    const Resource& r = catalog_.get(id);        // may throw NotFoundError
-    const Money cost = r.costFor(quantity);      // may throw invalid_argument
-    budget_.commit(r.category(), quantity, cost);  // may throw quota/budget errors
-    catalog_.addHoldings(id, quantity);
-    return record(&r, id, quantity, cost, true, {});
 }
 
 std::vector<PurchaseRecord> AcquisitionManager::processBatch(
@@ -74,7 +123,7 @@ std::vector<PurchaseRecord> AcquisitionManager::processBatch(
             why = "quantity must be positive";
         } else {
             cost = r->costFor(req.quantity);
-            why = budget_.check(r->category(), req.quantity, cost);
+            canPurchase(req.resourceId, req.quantity, &why);
         }
 
         if (why.empty()) {

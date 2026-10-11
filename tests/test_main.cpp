@@ -265,6 +265,38 @@ static void testTaxes() {
     CHECK(report.str().find("Post-tax total: 223.00") != std::string::npos);
 }
 
+static void testTitleLimits() {
+    Catalog c;
+    c.emplace<Book>("B1", "Book One", std::vector<std::string>{"A"}, "i", "P", 2020, Money::of(100));
+    c.emplace<Book>("B2", "Book Two", std::vector<std::string>{"A"}, "i", "P", 2021, Money::of(100));
+    c.emplace<EBook>("E1", "EBook One", std::vector<std::string>{"A"}, "ISBN1", EBookFormat::PDF, false, "P", 2022, Money::of(100), "url");
+    Budget b(Money::of(10000));
+    AcquisitionManager acq(c, b);
+    acq.setTitleLimit(ResourceCategory::Book, 1);
+    acq.setTitleLimit(ResourceCategory::EBook, 1);
+
+    CHECK(acq.titleLimitFor(ResourceCategory::Book) == std::optional<int>(1));
+    CHECK(!acq.titleLimitFor(ResourceCategory::Journal).has_value());
+    CHECK(acq.canPurchase("B1", 3));
+    acq.purchase("B1", 3);
+    CHECK(acq.canPurchase("B1", 1));
+    CHECK(!acq.canPurchase("B2", 1));
+    CHECK_THROWS(acq.purchase("B2", 1), QuotaExceededError);
+    CHECK(acq.canPurchase("E1", 1));
+    acq.purchase("E1", 1);
+    CHECK(c.holdings("B1") == 3);
+    CHECK(c.holdings("B2") == 0);
+    CHECK(c.holdings("E1") == 1);
+
+    auto results = acq.processBatch({{"B2", 1}, {"B1", 1}});
+    CHECK(results.size() == 2);
+    CHECK(!results[0].approved);
+    CHECK(results[0].reason.find("title limit exceeded") != std::string::npos);
+    CHECK(results[1].approved);
+    CHECK(c.holdings("B1") == 4);
+    CHECK_THROWS(acq.setTitleLimit(ResourceCategory::Book, -1), std::invalid_argument);
+}
+
 int main() {
     testMoney();
     testResourcesAndCost();
@@ -272,6 +304,7 @@ int main() {
     testBudget();
     testAcquisition();
     testTaxes();
+    testTitleLimits();
     std::cout << (g_checks - g_failures) << "/" << g_checks << " checks passed\n";
     return g_failures == 0 ? 0 : 1;
 }
