@@ -331,6 +331,41 @@ static void testCancellation() {
     CHECK(report.str().find("Tax: 0.00") != std::string::npos);
 }
 
+static void testDepartmentBudgets() {
+    Catalog c;
+    c.emplace<Book>("B1", "Book One", std::vector<std::string>{"A"}, "i", "P", 2020, Money::of(100));
+    Budget defaultBudget(Money::of(1000));
+    AcquisitionManager acq(c, defaultBudget);
+    acq.setDepartmentBudget("Computer Science", Money::of(300));
+    acq.setDepartmentBudget("Physics", Money::of(200));
+
+    acq.departmentBudget("Computer Science").setQuota(ResourceCategory::Book, {2, Money::of(200)});
+    acq.departmentBudget("Physics").setQuota(ResourceCategory::Book, {1, Money::of(100)});
+
+    const auto csOrder = acq.purchase("B1", 2, "Computer Science");
+    CHECK(csOrder.approved);
+    CHECK(csOrder.department == "Computer Science");
+    CHECK(acq.departmentBudget("Computer Science").spent() == Money::of(200));
+    CHECK(acq.departmentBudget("Physics").spent() == Money{});
+    CHECK(defaultBudget.spent() == Money{});
+
+    const auto physicsOrder = acq.purchase("B1", 1, "Physics");
+    CHECK(physicsOrder.approved);
+    CHECK(physicsOrder.department == "Physics");
+    CHECK(acq.departmentBudget("Physics").spent() == Money::of(100));
+    CHECK(acq.departmentBudget("Computer Science").spent() == Money::of(200));
+
+    CHECK(!acq.canPurchase("B1", 1, "Physics"));
+    CHECK(!acq.canPurchase("B1", 1, "Unknown Department"));
+
+    const auto cancellation = acq.cancelOrder(csOrder.orderNo);
+    CHECK(cancellation.cancellation);
+    CHECK(cancellation.department == "Computer Science");
+    CHECK(acq.departmentBudget("Computer Science").spent() == Money{});
+    CHECK(acq.departmentBudget("Physics").spent() == Money::of(100));
+    CHECK(c.holdings("B1") == 1);
+}
+
 int main() {
     testMoney();
     testResourcesAndCost();
@@ -340,6 +375,7 @@ int main() {
     testTaxes();
     testTitleLimits();
     testCancellation();
+    testDepartmentBudgets();
     std::cout << (g_checks - g_failures) << "/" << g_checks << " checks passed\n";
     return g_failures == 0 ? 0 : 1;
 }

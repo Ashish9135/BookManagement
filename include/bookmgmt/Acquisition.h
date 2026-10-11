@@ -1,8 +1,10 @@
+// MT26117_ASHISH
 #pragma once
 // AcquisitionManager: turns purchase requests into orders, enforcing the
 // Budget's quotas, updating Catalog holdings and keeping an order history.
 
 #include <iosfwd>
+#include <memory>
 #include <map>
 #include <optional>
 #include <string>
@@ -16,6 +18,7 @@ namespace bookmgmt {
 struct PurchaseRequest {
     std::string resourceId;
     int quantity;  // copies for print, seats for electronic
+    std::string department = "Default";
 };
 
 struct PurchaseRecord {
@@ -30,11 +33,15 @@ struct PurchaseRecord {
     std::string reason;  // why it was rejected; empty if approved
     bool cancellation = false;
     int cancelsOrderNo = 0;
+    std::string department = "Default";
 };
 
 class AcquisitionManager {
 public:
     AcquisitionManager(Catalog& catalog, Budget& budget, int printTaxPercent = 5, int electronicTaxPercent = 18);
+    void setDepartmentBudget(const std::string& department, Money total);
+    Budget& departmentBudget(const std::string& department);
+    const Budget& departmentBudget(const std::string& department) const;
     void setTitleLimit(ResourceCategory category, int limit);
     std::optional<int> titleLimitFor(ResourceCategory category) const;
 
@@ -44,6 +51,8 @@ public:
     Money totalWithTax(const std::string& id, int quantity) const;
 
     // True if the purchase would be approved; if not, `reason` explains why.
+    bool canPurchase(const std::string& id, int quantity, const std::string& department,
+                     std::string* reason = nullptr) const;
     bool canPurchase(const std::string& id, int quantity,
                      std::string* reason = nullptr) const;
 
@@ -51,6 +60,7 @@ public:
     // BudgetExceededError or std::invalid_argument. On success the budget
     // and holdings are updated and the record is added to history.
     const PurchaseRecord& purchase(const std::string& id, int quantity);
+    const PurchaseRecord& purchase(const std::string& id, int quantity, const std::string& department);
 
     // Cancels an approved order, refunds its budget and reduces holdings.
     // Keeps the original order and adds a cancellation record.
@@ -69,11 +79,12 @@ public:
 private:
     bool isOrderCancelled(int orderNo) const;
     PurchaseRecord& record(const Resource* r, const std::string& id, int qty,
-                           Money cost, bool approved, std::string reason);
+                           Money cost, bool approved, std::string reason, std::string department = "Default");
 
     Catalog& catalog_;
     Budget& budget_;
     std::map<ResourceCategory, int> titleLimits_;
+    std::map<std::string, std::unique_ptr<Budget>> departmentBudgets_;
     int printTaxPercent_;
     int electronicTaxPercent_;
     std::vector<PurchaseRecord> history_;
