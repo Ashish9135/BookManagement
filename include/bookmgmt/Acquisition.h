@@ -23,16 +23,19 @@ struct PurchaseRecord {
     ResourceCategory category;
     int quantity;
     Money cost;
+    bool digital = false;
     bool approved;
     std::string reason;  // why it was rejected; empty if approved
 };
 
 class AcquisitionManager {
 public:
-    AcquisitionManager(Catalog& catalog, Budget& budget);
+    AcquisitionManager(Catalog& catalog, Budget& budget, int printTaxPercent = 5, int electronicTaxPercent = 18);
 
     // Price of a request without buying anything. Throws NotFoundError.
     Money quote(const std::string& id, int quantity) const;
+    Money taxFor(const std::string& id, int quantity) const;
+    Money totalWithTax(const std::string& id, int quantity) const;
 
     // True if the purchase would be approved; if not, `reason` explains why.
     bool canPurchase(const std::string& id, int quantity,
@@ -59,6 +62,8 @@ private:
 
     Catalog& catalog_;
     Budget& budget_;
+    int printTaxPercent_;
+    int electronicTaxPercent_;
     std::vector<PurchaseRecord> history_;
     int nextOrderNo_ = 1;
 };

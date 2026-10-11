@@ -241,12 +241,37 @@ static void testAcquisition() {
     CHECK(acq.history().size() == 6);
 }
 
+static void testTaxes() {
+    Catalog c;
+    c.emplace<Book>("B1", "Book", std::vector<std::string>{"A"}, "i", "P", 2020, Money::of(100));
+    c.emplace<ElectronicResource>("R1", "DB", "P", 2026, Money::of(100), "url");
+    Budget b(Money::of(10000));
+    AcquisitionManager acq(c, b);
+
+    CHECK(acq.quote("B1", 2) == Money::of(200));
+    CHECK(acq.taxFor("B1", 2) == Money::of(10));
+    CHECK(acq.totalWithTax("B1", 2) == Money::of(210));
+
+    CHECK(acq.quote("R1", 2) == Money::of(200));
+    CHECK(acq.taxFor("R1", 2) == Money::of(36));
+    CHECK(acq.totalWithTax("R1", 2) == Money::of(236));
+
+    acq.purchase("B1", 1);
+    acq.purchase("R1", 1);
+    std::ostringstream report;
+    acq.printReport(report);
+    CHECK(report.str().find("Pre-tax total: 200.00") != std::string::npos);
+    CHECK(report.str().find("Tax: 23.00") != std::string::npos);
+    CHECK(report.str().find("Post-tax total: 223.00") != std::string::npos);
+}
+
 int main() {
     testMoney();
     testResourcesAndCost();
     testCatalog();
     testBudget();
     testAcquisition();
+    testTaxes();
     std::cout << (g_checks - g_failures) << "/" << g_checks << " checks passed\n";
     return g_failures == 0 ? 0 : 1;
 }

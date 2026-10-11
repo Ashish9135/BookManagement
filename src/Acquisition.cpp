@@ -8,11 +8,23 @@
 
 namespace bookmgmt {
 
-AcquisitionManager::AcquisitionManager(Catalog& catalog, Budget& budget)
-    : catalog_(catalog), budget_(budget) {}
+AcquisitionManager::AcquisitionManager(Catalog& catalog, Budget& budget, int printTaxPercent, int electronicTaxPercent)
+    : catalog_(catalog), budget_(budget), printTaxPercent_(printTaxPercent), electronicTaxPercent_(electronicTaxPercent) {}
 
 Money AcquisitionManager::quote(const std::string& id, int quantity) const {
     return catalog_.get(id).costFor(quantity);
+}
+
+Money AcquisitionManager::taxFor(const std::string& id, int quantity) const {
+    const Resource& resource = catalog_.get(id);
+    const Money cost = resource.costFor(quantity);
+    const int rate = resource.isDigital() ? electronicTaxPercent_ : printTaxPercent_;
+    return Money::fromMinor((cost.minorUnits() * rate + 50) / 100);
+}
+
+Money AcquisitionManager::totalWithTax(const std::string& id, int quantity) const {
+    return quote(id, quantity) + taxFor(id, quantity);
+
 }
 
 bool AcquisitionManager::canPurchase(const std::string& id, int quantity,
@@ -35,7 +47,7 @@ PurchaseRecord& AcquisitionManager::record(const Resource* r, const std::string&
                                            std::string reason) {
     history_.push_back(PurchaseRecord{
         nextOrderNo_++, id, r ? r->title() : std::string("(unknown)"),
-        r ? r->category() : ResourceCategory::Book, qty, cost, approved,
+        r ? r->category() : ResourceCategory::Book, qty, cost, r ? r->isDigital() : false, approved,
         std::move(reason)});
     return history_.back();
 }
@@ -92,7 +104,16 @@ void AcquisitionManager::printReport(std::ostream& os) const {
         if (!rec.approved) os << "\n        reason: " << rec.reason;
         os << "\n";
     }
-    os << "Total spent: " << totalSpent() << "\n";
+    os << "Pre-tax total: " << totalSpent() << "\n";
+    Money totalTax;
+    for (const auto& rec : history_) {
+        if (rec.approved) {
+            const int rate = rec.digital ? electronicTaxPercent_ : printTaxPercent_;
+            totalTax += Money::fromMinor((rec.cost.minorUnits() * rate + 50) / 100);
+        }
+    }
+    os << "Tax: " << totalTax << "\n";
+    os << "Post-tax total: " << totalSpent() + totalTax << "\n";
 }
 
 }  // namespace bookmgmt
