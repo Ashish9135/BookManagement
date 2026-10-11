@@ -202,6 +202,17 @@ static void testBudget() {
     CHECK_THROWS(b.commit(ResourceCategory::ElectronicResource, 0, Money::of(1)),
                  std::invalid_argument);
     CHECK(b.spent() == Money::of(300));  // failed commits changed nothing
+
+    const Budget nextYear = b.rollover(25);
+    CHECK(nextYear.total() == Money::of(175));
+    CHECK(nextYear.spent() == Money{});
+    CHECK(b.total() == Money::of(1000));
+    CHECK(b.remaining() == Money::of(700));
+    CHECK(b.spent() == Money::of(300));
+    CHECK(b.rollover(0).total() == Money{});
+    CHECK(b.rollover(100).total() == Money::of(700));
+    CHECK_THROWS(b.rollover(-1), std::invalid_argument);
+    CHECK_THROWS(b.rollover(101), std::invalid_argument);
 }
 
 static void testAcquisition() {

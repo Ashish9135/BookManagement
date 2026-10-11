@@ -1,3 +1,4 @@
+// MT26117_ASHISH
 #include "bookmgmt/Budget.h"
 
 #include <iomanip>
@@ -21,6 +22,13 @@ const ResourceCategory kAllCategories[] = {ResourceCategory::Book,
 
 Budget::Budget(Money total) : total_(total) {
     if (total_.isNegative()) throw std::invalid_argument("budget must not be negative");
+}
+
+Budget Budget::rollover(int percentage) const {
+    if (percentage < 0 || percentage > 100)
+        throw std::invalid_argument("rollover percentage must be between 0 and 100");
+    const std::int64_t carry = remaining().minorUnits() * percentage / 100;
+    return Budget(Money::fromMinor(carry));
 }
 
 void Budget::setQuota(ResourceCategory c, Quota q) {

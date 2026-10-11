@@ -1,3 +1,4 @@
+// MT26117_ASHISH
 #pragma once
 // Budget: an overall spending limit plus optional per-category purchase quotas.
 //
@@ -31,6 +32,8 @@ public:
     Money total() const { return total_; }
     Money spent() const { return spent_; }
     Money remaining() const { return total_ - spent_; }
+    // Creates next year's budget from a percentage of the unspent balance.
+    Budget rollover(int percentage) const;
 
     void setQuota(ResourceCategory c, Quota q);
     void removeQuota(ResourceCategory c);
