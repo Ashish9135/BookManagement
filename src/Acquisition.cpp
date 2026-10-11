@@ -47,18 +47,18 @@ bool AcquisitionManager::canPurchase(const std::string& id, int quantity,
         } else {
             bool titleExists = false;
             for (const auto& rec : history_) {
-                if (rec.approved && rec.category == r->category() && rec.title == r->title()) {
+                if (rec.approved && !rec.cancellation && !isOrderCancelled(rec.orderNo) && rec.category == r->category() && rec.title == r->title()) {
                     titleExists = true;
                     break;
                 }
             }
             int differentTitles = 0;
             for (const auto& rec : history_) {
-                if (rec.approved && rec.category == r->category()) {
+                if (rec.approved && !rec.cancellation && !isOrderCancelled(rec.orderNo) && rec.category == r->category()) {
                     bool firstOccurrence = true;
                     for (const auto& earlier : history_) {
                         if (earlier.orderNo >= rec.orderNo) break;
-                        if (earlier.approved && earlier.category == rec.category && earlier.title == rec.title) {
+                        if (earlier.approved && !earlier.cancellation && !isOrderCancelled(earlier.orderNo) && earlier.category == rec.category && earlier.title == rec.title) {
                             firstOccurrence = false;
                             break;
                         }
@@ -99,6 +99,13 @@ const PurchaseRecord& AcquisitionManager::purchase(const std::string& id, int qu
     return record(&r, id, quantity, cost, true, {});
 }
 
+bool AcquisitionManager::isOrderCancelled(int orderNo) const {
+    for (const auto& rec : history_) {
+        if (rec.cancellation && rec.cancelsOrderNo == orderNo) return true;
+    }
+    return false;
+}
+
 PurchaseRecord& AcquisitionManager::record(const Resource* r, const std::string& id,
                                            int qty, Money cost, bool approved,
                                            std::string reason) {
@@ -106,6 +113,31 @@ PurchaseRecord& AcquisitionManager::record(const Resource* r, const std::string&
         nextOrderNo_++, id, r ? r->title() : std::string("(unknown)"),
         r ? r->category() : ResourceCategory::Book, qty, cost, r ? r->isDigital() : false, approved,
         std::move(reason)});
+    return history_.back();
+}
+
+const PurchaseRecord& AcquisitionManager::cancelOrder(int orderNo) {
+    auto it = history_.end();
+    for (auto current = history_.begin(); current != history_.end(); ++current) {
+        if (current->orderNo == orderNo) {
+            it = current;
+            break;
+        }
+    }
+    if (it == history_.end()) throw NotFoundError(std::to_string(orderNo));
+    if (!it->approved || it->cancellation)
+        throw std::invalid_argument("order cannot be cancelled");
+    if (isOrderCancelled(orderNo))
+        throw std::invalid_argument("order already cancelled");
+
+    const PurchaseRecord original = *it;
+    budget_.refund(original.category, original.quantity, original.cost);
+    catalog_.addHoldings(original.resourceId, -original.quantity);
+
+    history_.push_back(PurchaseRecord{
+        nextOrderNo_++, original.resourceId, original.title, original.category,
+        original.quantity, original.cost, original.digital, true,
+        "Cancellation of order #" + std::to_string(orderNo), true, orderNo});
     return history_.back();
 }
 
@@ -138,7 +170,7 @@ std::vector<PurchaseRecord> AcquisitionManager::processBatch(
 Money AcquisitionManager::totalSpent() const {
     Money sum;
     for (const auto& rec : history_)
-        if (rec.approved) sum += rec.cost;
+        if (rec.approved && !rec.cancellation && !isOrderCancelled(rec.orderNo)) sum += rec.cost;
     return sum;
 }
 
@@ -146,7 +178,7 @@ void AcquisitionManager::printReport(std::ostream& os) const {
     os << "Order history (" << history_.size() << " orders)\n";
     for (const auto& rec : history_) {
         os << "  #" << std::setw(3) << std::left << rec.orderNo << " "
-           << (rec.approved ? "APPROVED" : "REJECTED") << "  " << std::setw(6)
+           << (rec.cancellation ? "CANCELLED" : (rec.approved ? "APPROVED" : "REJECTED")) << "  " << std::setw(6)
            << rec.resourceId << " x" << std::setw(3) << rec.quantity << " "
            << std::setw(12) << std::right << rec.cost.toString() << std::left << "  "
            << rec.title;
@@ -156,7 +188,7 @@ void AcquisitionManager::printReport(std::ostream& os) const {
     os << "Pre-tax total: " << totalSpent() << "\n";
     Money totalTax;
     for (const auto& rec : history_) {
-        if (rec.approved) {
+        if (rec.approved && !rec.cancellation && !isOrderCancelled(rec.orderNo)) {
             const int rate = rec.digital ? electronicTaxPercent_ : printTaxPercent_;
             totalTax += Money::fromMinor((rec.cost.minorUnits() * rate + 50) / 100);
         }

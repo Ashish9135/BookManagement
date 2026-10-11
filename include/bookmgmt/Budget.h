@@ -48,6 +48,7 @@ public:
     // Records a purchase. Throws QuotaExceededError / BudgetExceededError
     // (and changes nothing) if it would not fit.
     void commit(ResourceCategory c, int units, Money cost);
+    void refund(ResourceCategory c, int units, Money cost);
 
     void print(std::ostream& os) const;
 

@@ -297,6 +297,40 @@ static void testTitleLimits() {
     CHECK_THROWS(acq.setTitleLimit(ResourceCategory::Book, -1), std::invalid_argument);
 }
 
+static void testCancellation() {
+    Catalog c;
+    c.emplace<Book>("B1", "Book One", std::vector<std::string>{"A"}, "i", "P", 2020, Money::of(100));
+    c.emplace<Book>("B2", "Book Two", std::vector<std::string>{"A"}, "i", "P", 2021, Money::of(100));
+    Budget b(Money::of(1000));
+    AcquisitionManager acq(c, b);
+    acq.setTitleLimit(ResourceCategory::Book, 1);
+
+    const auto original = acq.purchase("B1", 3);
+    const int originalOrderNo = original.orderNo;
+    CHECK(b.spent() == Money::of(300));
+    CHECK(c.holdings("B1") == 3);
+
+    const auto cancellation = acq.cancelOrder(originalOrderNo);
+    CHECK(cancellation.cancellation);
+    CHECK(cancellation.cancelsOrderNo == originalOrderNo);
+    CHECK(cancellation.approved);
+    CHECK(acq.history().size() == 2);
+    CHECK(acq.history()[0].orderNo == originalOrderNo);
+    CHECK(!acq.history()[0].cancellation);
+    CHECK(c.holdings("B1") == 0);
+    CHECK(b.spent() == Money{});
+    CHECK(acq.totalSpent() == Money{});
+    CHECK(acq.canPurchase("B2", 1));
+    CHECK_THROWS(acq.cancelOrder(originalOrderNo), std::invalid_argument);
+    CHECK_THROWS(acq.cancelOrder(999), NotFoundError);
+
+    std::ostringstream report;
+    acq.printReport(report);
+    CHECK(report.str().find("CANCELLED") != std::string::npos);
+    CHECK(report.str().find("Pre-tax total: 0.00") != std::string::npos);
+    CHECK(report.str().find("Tax: 0.00") != std::string::npos);
+}
+
 int main() {
     testMoney();
     testResourcesAndCost();
@@ -305,6 +339,7 @@ int main() {
     testAcquisition();
     testTaxes();
     testTitleLimits();
+    testCancellation();
     std::cout << (g_checks - g_failures) << "/" << g_checks << " checks passed\n";
     return g_failures == 0 ? 0 : 1;
 }

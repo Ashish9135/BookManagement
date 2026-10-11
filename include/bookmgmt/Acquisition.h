@@ -28,6 +28,8 @@ struct PurchaseRecord {
     bool digital = false;
     bool approved;
     std::string reason;  // why it was rejected; empty if approved
+    bool cancellation = false;
+    int cancelsOrderNo = 0;
 };
 
 class AcquisitionManager {
@@ -50,6 +52,10 @@ public:
     // and holdings are updated and the record is added to history.
     const PurchaseRecord& purchase(const std::string& id, int quantity);
 
+    // Cancels an approved order, refunds its budget and reduces holdings.
+    // Keeps the original order and adds a cancellation record.
+    const PurchaseRecord& cancelOrder(int orderNo);
+
     // Processes requests in order; each is approved or rejected on its own
     // (never throws for a rejected request). Every outcome is recorded.
     // EXTENSION POINT: priority ordering, all-or-nothing batches, ...
@@ -61,6 +67,7 @@ public:
     void printReport(std::ostream& os) const;
 
 private:
+    bool isOrderCancelled(int orderNo) const;
     PurchaseRecord& record(const Resource* r, const std::string& id, int qty,
                            Money cost, bool approved, std::string reason);
 
