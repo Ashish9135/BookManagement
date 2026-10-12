@@ -8,6 +8,7 @@
 
 #include <iosfwd>
 #include <string>
+#include <utility>
 
 #include "bookmgmt/Money.h"
 
@@ -33,6 +34,8 @@ public:
     const std::string& id() const { return id_; }
     const std::string& title() const { return title_; }
     const std::string& publisher() const { return publisher_; }
+    const std::string& vendor() const { return vendor_; }
+    void setVendor(std::string vendor) { vendor_ = std::move(vendor); }
     int year() const { return year_; }
     Money unitPrice() const { return unitPrice_; }
     void setUnitPrice(Money price);
@@ -60,6 +63,7 @@ private:
     std::string id_;
     std::string title_;
     std::string publisher_;
+    std::string vendor_ = "Default Vendor";
     int year_;
     Money unitPrice_;
 };

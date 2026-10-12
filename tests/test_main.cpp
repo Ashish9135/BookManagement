@@ -470,6 +470,26 @@ static void testAllOrNothingBatch() {
 
 
 }
+static void testCheapestVendor() {
+    Catalog c;
+    auto& expensive = c.emplace<Book>("V1", "C++ Programming", std::vector<std::string>{"A"}, "i1", "P", 2020, Money::of(500));
+    auto& cheap = c.emplace<Book>("V2", "C++ Programming", std::vector<std::string>{"A"}, "i2", "P", 2020, Money::of(350));
+    expensive.setVendor("Vendor A");
+    cheap.setVendor("Vendor B");
+    Budget b(Money::of(1000));
+    AcquisitionManager acq(c, b);
+
+    const auto& rec = acq.purchaseCheapestVendor("C++ Programming", 1);
+    CHECK(rec.approved);
+    CHECK(rec.resourceId == "V2");
+    CHECK(rec.vendor == "Vendor B");
+    CHECK(rec.cost == Money::of(350));
+    CHECK(c.holdings("V2") == 1);
+    CHECK(c.holdings("V1") == 0);
+    CHECK_THROWS(acq.purchaseCheapestVendor("Unknown Title", 1), NotFoundError);
+    CHECK_THROWS(acq.purchaseCheapestVendor("C++ Programming", 0), std::invalid_argument);
+}
+
 int main() {
     testMoney();
     testResourcesAndCost();
@@ -482,6 +502,7 @@ int main() {
     testDepartmentBudgets();
     testQuotaWarnings();
     testRequestPriority();
+    testCheapestVendor();
     testAllOrNothingBatch();
     std::cout << (g_checks - g_failures) << "/" << g_checks << " checks passed\n";
     return g_failures == 0 ? 0 : 1;

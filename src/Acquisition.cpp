@@ -137,6 +137,23 @@ const PurchaseRecord& AcquisitionManager::purchase(const std::string& id, int qu
     return record(&r, id, quantity, cost, true, {}, department);
 }
 
+const PurchaseRecord& AcquisitionManager::purchaseCheapestVendor(
+    const std::string& title, int quantity, const std::string& department) {
+    if (quantity <= 0) throw std::invalid_argument("quantity must be positive");
+    const Resource* cheapest = nullptr;
+    Money cheapestCost;
+    for (const Resource* r : catalog_.all()) {
+        if (r->title() != title) continue;
+        const Money cost = r->costFor(quantity);
+        if (!cheapest || cost < cheapestCost) {
+            cheapest = r;
+            cheapestCost = cost;
+        }
+    }
+    if (!cheapest) throw NotFoundError(title);
+    return purchase(cheapest->id(), quantity, department);
+}
+
 bool AcquisitionManager::isOrderCancelled(int orderNo) const {
     for (const auto& rec : history_) {
         if (rec.cancellation && rec.cancelsOrderNo == orderNo) return true;
@@ -150,7 +167,7 @@ PurchaseRecord& AcquisitionManager::record(const Resource* r, const std::string&
     history_.push_back(PurchaseRecord{
         nextOrderNo_++, id, r ? r->title() : std::string("(unknown)"),
         r ? r->category() : ResourceCategory::Book, qty, cost, r ? r->isDigital() : false, approved,
-        std::move(reason), false, 0, std::move(department)});
+        std::move(reason), false, 0, std::move(department), r ? r->vendor() : std::string("Default Vendor")});
     return history_.back();
 }
 
@@ -175,7 +192,7 @@ const PurchaseRecord& AcquisitionManager::cancelOrder(int orderNo) {
     history_.push_back(PurchaseRecord{
         nextOrderNo_++, original.resourceId, original.title, original.category,
         original.quantity, original.cost, original.digital, true,
-        "Cancellation of order #" + std::to_string(orderNo), true, orderNo, original.department});
+        "Cancellation of order #" + std::to_string(orderNo), true, orderNo, original.department, original.vendor});
     return history_.back();
 }
 

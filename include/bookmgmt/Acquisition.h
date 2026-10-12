@@ -35,6 +35,7 @@ struct PurchaseRecord {
     bool cancellation = false;
     int cancelsOrderNo = 0;
     std::string department = "Default";
+    std::string vendor = "Default Vendor";
 };
 
 class AcquisitionManager {
@@ -62,6 +63,8 @@ public:
     // and holdings are updated and the record is added to history.
     const PurchaseRecord& purchase(const std::string& id, int quantity);
     const PurchaseRecord& purchase(const std::string& id, int quantity, const std::string& department);
+    // Selects the lowest-unit-price offer for an exact title.
+    const PurchaseRecord& purchaseCheapestVendor(const std::string& title, int quantity, const std::string& department = "Default");
 
     // Cancels an approved order, refunds its budget and reduces holdings.
     // Keeps the original order and adds a cancellation record.
