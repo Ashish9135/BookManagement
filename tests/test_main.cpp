@@ -393,6 +393,27 @@ static void testQuotaWarnings() {
     CHECK(report.str().find("spend quota") == std::string::npos);
 }
 
+static void testAllOrNothingBatch() {
+    Catalog c;
+    c.emplace<Book>("B1", "Book One", std::vector<std::string>{"A"}, "i", "P", 2020, Money::of(100));
+    c.emplace<Book>("B2", "Book Two", std::vector<std::string>{"A"}, "i", "P", 2021, Money::of(100));
+    Budget b(Money::of(250));
+    AcquisitionManager acq(c, b);
+
+    auto failed = acq.processBatch({{"B1", 1}, {"B2", 2}}, true);
+    CHECK(failed.size() == 2);
+    CHECK(!failed[0].approved && !failed[1].approved);
+    CHECK(acq.totalSpent() == Money::of(0));
+    CHECK(b.spent() == Money::of(0));
+    CHECK(c.holdings("B1") == 0 && c.holdings("B2") == 0);
+
+    auto succeeded = acq.processBatch({{"B1", 1}, {"B2", 1}}, true);
+    CHECK(succeeded.size() == 2);
+    CHECK(succeeded[0].approved && succeeded[1].approved);
+    CHECK(acq.totalSpent() == Money::of(200));
+    CHECK(c.holdings("B1") == 1 && c.holdings("B2") == 1);
+}
+
 int main() {
     testMoney();
     testResourcesAndCost();
@@ -404,6 +425,7 @@ int main() {
     testCancellation();
     testDepartmentBudgets();
     testQuotaWarnings();
+    testAllOrNothingBatch();
     std::cout << (g_checks - g_failures) << "/" << g_checks << " checks passed\n";
     return g_failures == 0 ? 0 : 1;
 }

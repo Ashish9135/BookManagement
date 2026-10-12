@@ -2,6 +2,8 @@
 #include "bookmgmt/Acquisition.h"
 
 #include <iomanip>
+#include <map>
+#include <set>
 #include <ostream>
 #include <stdexcept>
 
@@ -178,27 +180,115 @@ const PurchaseRecord& AcquisitionManager::cancelOrder(int orderNo) {
 }
 
 std::vector<PurchaseRecord> AcquisitionManager::processBatch(
-    const std::vector<PurchaseRequest>& reqs) {
+    const std::vector<PurchaseRequest>& reqs, bool allOrNothing) {
     std::vector<PurchaseRecord> results;
     results.reserve(reqs.size());
-    for (const auto& req : reqs) {
+
+    if (!allOrNothing) {
+        for (const auto& req : reqs) {
+            const Resource* r = catalog_.find(req.resourceId);
+            Money cost;
+            std::string why;
+            if (!r) {
+                why = "resource not found: " + req.resourceId;
+            } else if (req.quantity <= 0) {
+                why = "quantity must be positive";
+            } else {
+                cost = r->costFor(req.quantity);
+                canPurchase(req.resourceId, req.quantity, req.department, &why);
+            }
+
+            if (why.empty()) {
+                results.push_back(purchase(req.resourceId, req.quantity, req.department));
+            } else {
+                results.push_back(record(r, req.resourceId, req.quantity, cost, false, why, req.department));
+            }
+        }
+        return results;
+    }
+
+    // Validate against temporary budgets so cumulative requests are checked
+    // without changing the real budgets or catalog.
+    std::map<std::string, Budget> simulatedBudgets;
+    simulatedBudgets.emplace("Default", budget_);
+    for (const auto& entry : departmentBudgets_)
+        simulatedBudgets.emplace(entry.first, *entry.second);
+
+    std::map<ResourceCategory, std::set<std::string>> titlesByCategory;
+    for (const auto& rec : history_) {
+        if (rec.approved && !rec.cancellation && !isOrderCancelled(rec.orderNo))
+            titlesByCategory[rec.category].insert(rec.title);
+    }
+
+    std::vector<std::string> reasons(reqs.size());
+    bool valid = true;
+
+    for (std::size_t i = 0; i < reqs.size(); ++i) {
+        const auto& req = reqs[i];
         const Resource* r = catalog_.find(req.resourceId);
-        Money cost;
-        std::string why;
+
         if (!r) {
-            why = "resource not found: " + req.resourceId;
-        } else if (req.quantity <= 0) {
-            why = "quantity must be positive";
-        } else {
-            cost = r->costFor(req.quantity);
-            canPurchase(req.resourceId, req.quantity, req.department, &why);
+            reasons[i] = "resource not found: " + req.resourceId;
+            valid = false;
+            continue;
+        }
+        if (req.quantity <= 0) {
+            reasons[i] = "quantity must be positive";
+            valid = false;
+            continue;
         }
 
-        if (why.empty()) {
-            results.push_back(purchase(req.resourceId, req.quantity, req.department));
-        } else {
-            results.push_back(record(r, req.resourceId, req.quantity, cost, false, why, req.department));
+        Money cost;
+        try {
+            cost = r->costFor(req.quantity);
+            auto budgetIt = simulatedBudgets.find(req.department);
+            if (budgetIt == simulatedBudgets.end()) {
+                reasons[i] = "unknown department: " + req.department;
+                valid = false;
+                continue;
+            }
+
+            auto& titles = titlesByCategory[r->category()];
+            const bool titleExists = titles.find(r->title()) != titles.end();
+            const auto limit = titleLimitFor(r->category());
+            if (limit && !titleExists && static_cast<int>(titles.size()) >= *limit) {
+                reasons[i] = std::string(categoryName(r->category())) + " title limit exceeded";
+                valid = false;
+                continue;
+            }
+
+            reasons[i] = budgetIt->second.check(r->category(), req.quantity, cost);
+            if (!reasons[i].empty()) {
+                valid = false;
+                continue;
+            }
+
+            budgetIt->second.commit(r->category(), req.quantity, cost);
+            titles.insert(r->title());
+        } catch (const std::invalid_argument& e) {
+            reasons[i] = e.what();
+            valid = false;
         }
+    }
+
+    if (valid) {
+        for (const auto& req : reqs)
+            results.push_back(purchase(req.resourceId, req.quantity, req.department));
+        return results;
+    }
+
+    for (std::size_t i = 0; i < reqs.size(); ++i) {
+        const auto* r = catalog_.find(reqs[i].resourceId);
+        Money cost;
+        if (r && reqs[i].quantity > 0) {
+            try { cost = r->costFor(reqs[i].quantity); }
+            catch (const std::invalid_argument&) {}
+        }
+        const std::string why = reasons[i].empty()
+            ? "batch rejected: another request failed validation"
+            : "batch rejected: " + reasons[i];
+        results.push_back(record(r, reqs[i].resourceId, reqs[i].quantity, cost,
+                                 false, why, reqs[i].department));
     }
     return results;
 }
