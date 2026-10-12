@@ -19,6 +19,7 @@ struct PurchaseRequest {
     std::string resourceId;
     int quantity;  // copies for print, seats for electronic
     std::string department = "Default";
+    int priority = 0;  // Higher number means higher priority
 };
 
 struct PurchaseRecord {

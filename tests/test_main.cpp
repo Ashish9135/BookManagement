@@ -393,6 +393,22 @@ static void testQuotaWarnings() {
     CHECK(report.str().find("spend quota") == std::string::npos);
 }
 
+static void testRequestPriority() {
+    Catalog c;
+    c.emplace<Book>("P1", "Low Priority Book", std::vector<std::string>{"A"}, "i", "P", 2020, Money::of(100));
+    c.emplace<Book>("P2", "High Priority Book", std::vector<std::string>{"B"}, "i", "P", 2021, Money::of(100));
+    Budget b(Money::of(100));
+    AcquisitionManager acq(c, b);
+
+    auto results = acq.processBatch({{"P1", 1, "Default", 1}, {"P2", 1, "Default", 10}});
+    CHECK(results.size() == 2);
+    CHECK(!results[0].approved);
+    CHECK(results[1].approved);
+    CHECK(c.holdings("P1") == 0);
+    CHECK(c.holdings("P2") == 1);
+}
+
+
 static void testAllOrNothingBatch() {
     Catalog c;
     c.emplace<Book>("B1", "Book One", std::vector<std::string>{"A"}, "i", "P", 2020, Money::of(100));
@@ -465,6 +481,7 @@ int main() {
     testCancellation();
     testDepartmentBudgets();
     testQuotaWarnings();
+    testRequestPriority();
     testAllOrNothingBatch();
     std::cout << (g_checks - g_failures) << "/" << g_checks << " checks passed\n";
     return g_failures == 0 ? 0 : 1;

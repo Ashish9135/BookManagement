@@ -181,11 +181,18 @@ const PurchaseRecord& AcquisitionManager::cancelOrder(int orderNo) {
 
 std::vector<PurchaseRecord> AcquisitionManager::processBatch(
     const std::vector<PurchaseRequest>& reqs, bool allOrNothing) {
-    std::vector<PurchaseRecord> results;
-    results.reserve(reqs.size());
+    std::vector<PurchaseRecord> results(reqs.size());
+
+    // Process higher-priority requests first; preserve order for ties.
+    std::vector<std::size_t> order(reqs.size());
+    for (std::size_t i = 0; i < reqs.size(); ++i) order[i] = i;
+    std::stable_sort(order.begin(), order.end(), [&reqs](std::size_t a, std::size_t b) {
+        return reqs[a].priority > reqs[b].priority;
+    });
 
     if (!allOrNothing) {
-        for (const auto& req : reqs) {
+        for (const auto i : order) {
+            const auto& req = reqs[i];
             const Resource* r = catalog_.find(req.resourceId);
             Money cost;
             std::string why;
@@ -199,9 +206,9 @@ std::vector<PurchaseRecord> AcquisitionManager::processBatch(
             }
 
             if (why.empty()) {
-                results.push_back(purchase(req.resourceId, req.quantity, req.department));
+                results[i] = purchase(req.resourceId, req.quantity, req.department);
             } else {
-                results.push_back(record(r, req.resourceId, req.quantity, cost, false, why, req.department));
+                results[i] = record(r, req.resourceId, req.quantity, cost, false, why, req.department);
             }
         }
         return results;
@@ -223,7 +230,7 @@ std::vector<PurchaseRecord> AcquisitionManager::processBatch(
     std::vector<std::string> reasons(reqs.size());
     bool valid = true;
 
-    for (std::size_t i = 0; i < reqs.size(); ++i) {
+    for (const auto i : order) {
         const auto& req = reqs[i];
         const Resource* r = catalog_.find(req.resourceId);
 
@@ -272,8 +279,10 @@ std::vector<PurchaseRecord> AcquisitionManager::processBatch(
     }
 
     if (valid) {
-        for (const auto& req : reqs)
-            results.push_back(purchase(req.resourceId, req.quantity, req.department));
+        for (const auto i : order) {
+            const auto& req = reqs[i];
+            results[i] = purchase(req.resourceId, req.quantity, req.department);
+        }
         return results;
     }
 
@@ -287,8 +296,8 @@ std::vector<PurchaseRecord> AcquisitionManager::processBatch(
         const std::string why = reasons[i].empty()
             ? "batch rejected: another request failed validation"
             : "batch rejected: " + reasons[i];
-        results.push_back(record(r, reqs[i].resourceId, reqs[i].quantity, cost,
-                                 false, why, reqs[i].department));
+        results[i] = record(r, reqs[i].resourceId, reqs[i].quantity, cost,
+                                 false, why, reqs[i].department);
     }
     return results;
 }
