@@ -7,6 +7,8 @@
 
 namespace bookmgmt {
 
+// Thesis derives from Resource because it is a catalogue/acquisition item,
+// but not a Book: thesis metadata (university, degree, supervisor) is distinct.
 class Thesis : public Resource {
 public:
     Thesis(std::string id, std::string title, std::string university,

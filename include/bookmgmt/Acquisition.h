@@ -40,7 +40,7 @@ struct PurchaseRecord {
 
 class AcquisitionManager {
 public:
-    AcquisitionManager(Catalog& catalog, Budget& budget, int printTaxPercent = 5, int electronicTaxPercent = 18);
+    AcquisitionManager(Catalog& catalog, Budget& budget, int printTaxPercent = 0, int electronicTaxPercent = 0);
     void setDepartmentBudget(const std::string& department, Money total);
     Budget& departmentBudget(const std::string& department);
     const Budget& departmentBudget(const std::string& department) const;

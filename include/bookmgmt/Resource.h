@@ -7,7 +7,9 @@
 //   └── ElectronicResource
 
 #include <iosfwd>
+#include <stdexcept>
 #include <string>
+#include <vector>
 #include <utility>
 
 #include "bookmgmt/Money.h"
@@ -20,6 +22,11 @@ namespace bookmgmt {
 enum class ResourceCategory { Book, ElectronicResource, Journal, EBook, AudioBook, Thesis, Magazine };
 
 const char* categoryName(ResourceCategory c);
+
+struct VendorOffer {
+    std::string vendor;
+    Money unitPrice;
+};
 
 class Resource {
 public:
@@ -36,6 +43,12 @@ public:
     const std::string& publisher() const { return publisher_; }
     const std::string& vendor() const { return vendor_; }
     void setVendor(std::string vendor) { vendor_ = std::move(vendor); }
+    void addVendorOffer(std::string vendor, Money unitPrice) {
+        if (vendor.empty()) throw std::invalid_argument("vendor name must not be empty");
+        if (unitPrice.isNegative()) throw std::invalid_argument("vendor price must not be negative");
+        vendorOffers_.push_back(VendorOffer{std::move(vendor), unitPrice});
+    }
+    const std::vector<VendorOffer>& vendorOffers() const { return vendorOffers_; }
     int year() const { return year_; }
     Money unitPrice() const { return unitPrice_; }
     void setUnitPrice(Money price);
@@ -64,6 +77,7 @@ private:
     std::string title_;
     std::string publisher_;
     std::string vendor_ = "Default Vendor";
+    std::vector<VendorOffer> vendorOffers_;
     int year_;
     Money unitPrice_;
 };

@@ -14,6 +14,13 @@ AudioBook::AudioBook(std::string id, std::string title,
       narrator_(std::move(narrator)),
       durationMinutes_(durationMinutes) {}
 
+Money AudioBook::costFor(int copies) const {
+    requirePositive(copies);
+    Money cost = unitPrice() * copies;
+    if (copies >= 10) cost = Money::fromMinor((cost.minorUnits() * 90 + 50) / 100);
+    return cost;
+}
+
 void AudioBook::printDetails(std::ostream& os) const {
     os << "  narrator: " << narrator_ << "\n"
        << "  duration minutes: " << durationMinutes_ << "\n";

@@ -41,6 +41,17 @@ public:
     // Holdings: number of copies (print) or seats (electronic) owned.
     int holdings(const std::string& id) const;
     void addHoldings(const std::string& id, int units);
+    // MT26117_ASHISH
+    void borrowPrintCopy(const std::string& id, const std::string& patron);
+    void returnPrintCopy(const std::string& id, const std::string& patron);
+    void openElectronicSession(const std::string& id, const std::string& patron);
+    void closeElectronicSession(const std::string& id, const std::string& patron);
+    int activeLoans(const std::string& id) const;
+    int activeSessions(const std::string& id) const;
+
+    // MT26117_ASHISH
+    void saveToFile(const std::string& filename) const;
+    void loadFromFile(const std::string& filename);
 
     // Queries. Results are in id order and point into the catalog.
     std::vector<const Resource*> all() const;
@@ -57,7 +68,10 @@ private:
     struct Entry {
         std::unique_ptr<Resource> resource;
         int holdings = 0;
+        std::vector<std::string> activeLoans;
+        std::vector<std::string> activeSessions;
     };
+
     std::map<std::string, Entry> items_;
 };
 

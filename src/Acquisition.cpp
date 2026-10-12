@@ -1,6 +1,7 @@
 // MT26117_ASHISH
 #include "bookmgmt/Acquisition.h"
 
+#include <algorithm>
 #include <iomanip>
 #include <map>
 #include <set>
@@ -96,7 +97,7 @@ bool AcquisitionManager::canPurchase(const std::string& id, int quantity,
                 if (limit && !titleExists && differentTitles >= *limit) {
                     why = std::string(categoryName(r->category())) + " title limit exceeded";
                 } else {
-                    why = deptBudget.check(r->category(), quantity, r->costFor(quantity));
+                    why = deptBudget.check(r->category(), quantity, totalWithTax(r->id(), quantity));
                 }
             } catch (const std::invalid_argument& e) {
                 why = e.what();
@@ -132,7 +133,7 @@ const PurchaseRecord& AcquisitionManager::purchase(const std::string& id, int qu
         throw QuotaExceededError(reason);
     }
     const Money cost = r.costFor(quantity);
-    departmentBudget(department).commit(r.category(), quantity, cost);
+    departmentBudget(department).commit(r.category(), quantity, cost + taxFor(id, quantity));
     catalog_.addHoldings(id, quantity);
     return record(&r, id, quantity, cost, true, {}, department);
 }
@@ -141,17 +142,45 @@ const PurchaseRecord& AcquisitionManager::purchaseCheapestVendor(
     const std::string& title, int quantity, const std::string& department) {
     if (quantity <= 0) throw std::invalid_argument("quantity must be positive");
     const Resource* cheapest = nullptr;
-    Money cheapestCost;
+    std::string selectedVendor;
+    Money cheapestUnitPrice;
     for (const Resource* r : catalog_.all()) {
         if (r->title() != title) continue;
-        const Money cost = r->costFor(quantity);
-        if (!cheapest || cost < cheapestCost) {
-            cheapest = r;
-            cheapestCost = cost;
+        if (r->vendorOffers().empty()) {
+            if (!cheapest || r->unitPrice() < cheapestUnitPrice) {
+                cheapest = r;
+                selectedVendor = r->vendor();
+                cheapestUnitPrice = r->unitPrice();
+            }
+        } else {
+            for (const auto& offer : r->vendorOffers()) {
+                if (!cheapest || offer.unitPrice < cheapestUnitPrice) {
+                    cheapest = r;
+                    selectedVendor = offer.vendor;
+                    cheapestUnitPrice = offer.unitPrice;
+                }
+            }
         }
     }
     if (!cheapest) throw NotFoundError(title);
-    return purchase(cheapest->id(), quantity, department);
+
+    // Apply the chosen offer only for the synchronous purchase operation, then
+    // restore the catalogue's base price/vendor even if validation throws.
+    Resource* selected = const_cast<Resource*>(cheapest);
+    const Money originalPrice = selected->unitPrice();
+    const std::string originalVendor = selected->vendor();
+    selected->setUnitPrice(cheapestUnitPrice);
+    selected->setVendor(selectedVendor);
+    try {
+        const PurchaseRecord& result = purchase(selected->id(), quantity, department);
+        selected->setUnitPrice(originalPrice);
+        selected->setVendor(originalVendor);
+        return result;
+    } catch (...) {
+        selected->setUnitPrice(originalPrice);
+        selected->setVendor(originalVendor);
+        throw;
+    }
 }
 
 bool AcquisitionManager::isOrderCancelled(int orderNo) const {
@@ -186,7 +215,9 @@ const PurchaseRecord& AcquisitionManager::cancelOrder(int orderNo) {
         throw std::invalid_argument("order already cancelled");
 
     const PurchaseRecord original = *it;
-    departmentBudget(original.department).refund(original.category, original.quantity, original.cost);
+    const int taxRate = original.digital ? electronicTaxPercent_ : printTaxPercent_;
+    const Money originalTax = Money::fromMinor((original.cost.minorUnits() * taxRate + 50) / 100);
+    departmentBudget(original.department).refund(original.category, original.quantity, original.cost + originalTax);
     catalog_.addHoldings(original.resourceId, -original.quantity);
 
     history_.push_back(PurchaseRecord{
@@ -281,13 +312,13 @@ std::vector<PurchaseRecord> AcquisitionManager::processBatch(
                 continue;
             }
 
-            reasons[i] = budgetIt->second.check(r->category(), req.quantity, cost);
+            reasons[i] = budgetIt->second.check(r->category(), req.quantity, cost + taxFor(req.resourceId, req.quantity));
             if (!reasons[i].empty()) {
                 valid = false;
                 continue;
             }
 
-            budgetIt->second.commit(r->category(), req.quantity, cost);
+            budgetIt->second.commit(r->category(), req.quantity, cost + taxFor(req.resourceId, req.quantity));
             titles.insert(r->title());
         } catch (const std::invalid_argument& e) {
             reasons[i] = e.what();

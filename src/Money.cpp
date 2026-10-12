@@ -5,11 +5,11 @@
 
 namespace bookmgmt {
 
-Money Money::of(std::int64_t major, int minor) {
+Money Money::of(std::int64_t major, int minor, const std::string& currency) {
     if (minor < 0 || minor > 99)
         throw std::invalid_argument("minor part must be in 0..99");
     const std::int64_t sign = major < 0 ? -1 : 1;
-    return Money(major * 100 + sign * minor);
+    return Money(major * 100 + sign * minor, currency);
 }
 
 std::string Money::toString() const {
