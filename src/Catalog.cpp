@@ -88,4 +88,41 @@ std::vector<const Resource*> Catalog::searchTitle(const std::string& text) const
     });
 }
 
+std::vector<const Resource*> Catalog::searchAuthor(const std::string& author) const {
+    const std::string needle = lower(author);
+    return where([&needle](const Resource& r) {
+        if (const auto* b = dynamic_cast<const Book*>(&r)) {
+            for (const auto& a : b->authors())
+                if (lower(a).find(needle) != std::string::npos) return true;
+        }
+        if (const auto* e = dynamic_cast<const EBook*>(&r)) {
+            for (const auto& a : e->authors())
+                if (lower(a).find(needle) != std::string::npos) return true;
+        }
+        return false;
+    });
+}
+
+std::vector<const Resource*> Catalog::searchISBN(const std::string& isbn) const {
+    return where([&isbn](const Resource& r) {
+        if (const auto* b = dynamic_cast<const Book*>(&r)) return b->isbn() == isbn;
+        if (const auto* e = dynamic_cast<const EBook*>(&r)) return e->isbn() == isbn;
+        return false;
+    });
+}
+
+std::vector<const Resource*> Catalog::searchISSN(const std::string& issn) const {
+    return where([&issn](const Resource& r) {
+        if (const auto* j = dynamic_cast<const Journal*>(&r)) return j->issn() == issn;
+        return false;
+    });
+}
+
+std::vector<const Resource*> Catalog::searchYearRange(int firstYear, int lastYear) const {
+    if (firstYear > lastYear) throw std::invalid_argument("first year must not exceed last year");
+    return where([firstYear, lastYear](const Resource& r) {
+        return r.year() >= firstYear && r.year() <= lastYear;
+    });
+}
+
 }  // namespace bookmgmt

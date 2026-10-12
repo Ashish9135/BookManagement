@@ -155,10 +155,15 @@ static void testCatalog() {
                     Money::of(1));
     c.emplace<Book>("B2", "Clean Architecture", std::vector<std::string>{"M"}, "i", "P",
                     2017, Money::of(1));
+    auto& eb = c.emplace<EBook>("E1", "Modern C++", std::vector<std::string>{"Alice Smith"},
+                                 "978-111", EBookFormat::EPUB, false, "TechPub", 2021,
+                                 Money::of(20), "url");
+    auto& j = c.emplace<Journal>("J1", "Computing Journal", "ISSN-1234", 12, 1,
+                                  "SciencePub", 2022, Money::of(30));
     c.emplace<ElectronicResource>("R1", "ACM Digital Library", "ACM", 2026, Money::of(1),
                                   "url");
 
-    CHECK(c.size() == 3);
+    CHECK(c.size() == 5);
     CHECK(c.contains("B1"));
     CHECK(c.find("nope") == nullptr);
     CHECK_THROWS(c.get("nope"), NotFoundError);
@@ -167,8 +172,17 @@ static void testCatalog() {
                  DuplicateIdError);
 
     CHECK(c.searchTitle("clean").size() == 2);
+    CHECK(c.searchAuthor("alice").size() == 1);
+    CHECK(c.searchAuthor("ALICE SMITH").size() == 1);
+    CHECK(c.searchISBN("978-111").size() == 1);
+    CHECK(c.searchISSN("ISSN-1234").size() == 1);
+    CHECK(c.searchISBN("missing").empty());
+    CHECK(c.searchISSN("missing").empty());
+    CHECK(c.searchYearRange(2021, 2022).size() == 2);
+    CHECK(c.searchYearRange(2008, 2008).size() == 1);
+    CHECK_THROWS(c.searchYearRange(2023, 2020), std::invalid_argument);
     CHECK(c.byCategory(ResourceCategory::ElectronicResource).size() == 1);
-    CHECK(c.where([](const Resource& r) { return r.isDigital(); }).size() == 1);
+    CHECK(c.where([](const Resource& r) { return r.isDigital(); }).size() == 2);
 
     CHECK(c.holdings("B1") == 0);
     c.addHoldings("B1", 3);
@@ -176,7 +190,7 @@ static void testCatalog() {
     CHECK_THROWS(c.addHoldings("B1", -5), std::invalid_argument);
 
     c.remove("R1");
-    CHECK(c.size() == 2);
+    CHECK(c.size() == 4);
     CHECK_THROWS(c.remove("R1"), NotFoundError);
 }
 
@@ -219,6 +233,11 @@ static void testAcquisition() {
     Catalog c;
     c.emplace<Book>("B1", "Book", std::vector<std::string>{"A"}, "i", "P", 2020,
                     Money::of(100));
+    auto& eb = c.emplace<EBook>("E1", "Modern C++", std::vector<std::string>{"Alice Smith"},
+                                 "978-111", EBookFormat::EPUB, false, "TechPub", 2021,
+                                 Money::of(20), "url");
+    auto& j = c.emplace<Journal>("J1", "Computing Journal", "ISSN-1234", 12, 1,
+                                  "SciencePub", 2022, Money::of(30));
     c.emplace<ElectronicResource>("R1", "DB", "P", 2026, Money::of(10), "url",
                                   LicenseModel::AnnualSubscription, Money::of(50));
     Budget b(Money::of(500));
@@ -255,6 +274,11 @@ static void testAcquisition() {
 static void testTaxes() {
     Catalog c;
     c.emplace<Book>("B1", "Book", std::vector<std::string>{"A"}, "i", "P", 2020, Money::of(100));
+    auto& eb = c.emplace<EBook>("E1", "Modern C++", std::vector<std::string>{"Alice Smith"},
+                                 "978-111", EBookFormat::EPUB, false, "TechPub", 2021,
+                                 Money::of(20), "url");
+    auto& j = c.emplace<Journal>("J1", "Computing Journal", "ISSN-1234", 12, 1,
+                                  "SciencePub", 2022, Money::of(30));
     c.emplace<ElectronicResource>("R1", "DB", "P", 2026, Money::of(100), "url");
     Budget b(Money::of(10000));
     AcquisitionManager acq(c, b);

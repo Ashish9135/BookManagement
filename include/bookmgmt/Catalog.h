@@ -8,6 +8,9 @@
 #include <vector>
 
 #include "bookmgmt/Resource.h"
+#include "bookmgmt/Book.h"
+#include "bookmgmt/EBook.h"
+#include "bookmgmt/Journal.h"
 
 namespace bookmgmt {
 
@@ -43,6 +46,10 @@ public:
     std::vector<const Resource*> all() const;
     std::vector<const Resource*> byCategory(ResourceCategory c) const;
     std::vector<const Resource*> searchTitle(const std::string& text) const;  // case-insensitive
+    std::vector<const Resource*> searchAuthor(const std::string& author) const;
+    std::vector<const Resource*> searchISBN(const std::string& isbn) const;
+    std::vector<const Resource*> searchISSN(const std::string& issn) const;
+    std::vector<const Resource*> searchYearRange(int firstYear, int lastYear) const;
     std::vector<const Resource*> where(
         const std::function<bool(const Resource&)>& pred) const;
 
