@@ -221,6 +221,35 @@ void AcquisitionManager::printReport(std::ostream& os) const {
         if (!rec.approved) os << "\n        reason: " << rec.reason;
         os << "\n";
     }
+    const ResourceCategory categories[] = {
+        ResourceCategory::Book,
+        ResourceCategory::Journal,
+        ResourceCategory::Magazine,
+        ResourceCategory::ElectronicResource,
+        ResourceCategory::AudioBook,
+        ResourceCategory::EBook,
+        ResourceCategory::Thesis
+    };
+    auto printQuotaWarnings = [&os, &categories](const std::string& department, const Budget& budget) {
+        for (const auto category : categories) {
+            const auto quota = budget.quotaFor(category);
+            if (!quota) continue;
+            const auto usage = budget.usageFor(category);
+            if (static_cast<long double>(usage.units) > static_cast<long double>(quota->maxUnits) * 0.8L) {
+                os << "WARNING: " << department << " - " << categoryName(category)
+                   << " unit quota usage exceeds 80% (" << usage.units << "/" << quota->maxUnits << ")\n";
+            }
+            if (static_cast<long double>(usage.spent.minorUnits()) > static_cast<long double>(quota->maxSpend.minorUnits()) * 0.8L) {
+                os << "WARNING: " << department << " - " << categoryName(category)
+                   << " spend quota usage exceeds 80% (" << usage.spent << "/" << quota->maxSpend << ")\n";
+            }
+        }
+    };
+    printQuotaWarnings("Default", budget_);
+    for (const auto& entry : departmentBudgets_) {
+        printQuotaWarnings(entry.first, *entry.second);
+    }
+
     os << "Pre-tax total: " << totalSpent() << "\n";
     Money totalTax;
     for (const auto& rec : history_) {

@@ -377,6 +377,22 @@ static void testDepartmentBudgets() {
     CHECK(c.holdings("B1") == 1);
 }
 
+static void testQuotaWarnings() {
+    Catalog c;
+    c.emplace<Book>("B1", "Book One", std::vector<std::string>{"A"}, "i", "P", 2020, Money::of(60));
+    Budget b(Money::of(1000));
+    AcquisitionManager acq(c, b);
+    b.setQuota(ResourceCategory::Book, {5, Money::of(400)});
+    acq.purchase("B1", 5);
+
+    std::ostringstream report;
+    acq.printReport(report);
+    CHECK(report.str().find("WARNING") != std::string::npos);
+    CHECK(report.str().find("Book") != std::string::npos);
+    CHECK(report.str().find("unit quota") != std::string::npos);
+    CHECK(report.str().find("spend quota") == std::string::npos);
+}
+
 int main() {
     testMoney();
     testResourcesAndCost();
@@ -387,6 +403,7 @@ int main() {
     testTitleLimits();
     testCancellation();
     testDepartmentBudgets();
+    testQuotaWarnings();
     std::cout << (g_checks - g_failures) << "/" << g_checks << " checks passed\n";
     return g_failures == 0 ? 0 : 1;
 }
