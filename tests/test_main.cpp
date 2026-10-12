@@ -412,8 +412,48 @@ static void testAllOrNothingBatch() {
     CHECK(succeeded[0].approved && succeeded[1].approved);
     CHECK(acq.totalSpent() == Money::of(200));
     CHECK(c.holdings("B1") == 1 && c.holdings("B2") == 1);
-}
 
+    // Test cumulative category quota: the entire batch must be rejected.
+    Catalog quotaCatalog;
+    quotaCatalog.emplace<Book>("Q1", "Quota Book One", std::vector<std::string>{"A"}, "i", "P", 2020, Money::of(100));
+    quotaCatalog.emplace<Book>("Q2", "Quota Book Two", std::vector<std::string>{"A"}, "i", "P", 2021, Money::of(100));
+    Budget quotaBudget(Money::of(1000));
+    quotaBudget.setQuota(ResourceCategory::Book, {1, Money::of(1000)});
+    AcquisitionManager quotaAcq(quotaCatalog, quotaBudget);
+    auto quotaFailed = quotaAcq.processBatch({{"Q1", 1}, {"Q2", 1}}, true);
+    CHECK(quotaFailed.size() == 2);
+    CHECK(!quotaFailed[0].approved && !quotaFailed[1].approved);
+    CHECK(quotaBudget.spent() == Money::of(0));
+    CHECK(quotaCatalog.holdings("Q1") == 0 && quotaCatalog.holdings("Q2") == 0);
+
+    // Test title limits: one invalid request rejects the entire batch.
+    Catalog titleCatalog;
+    titleCatalog.emplace<Book>("T1", "Title Book One", std::vector<std::string>{"A"}, "i", "P", 2020, Money::of(100));
+    titleCatalog.emplace<Book>("T2", "Title Book Two", std::vector<std::string>{"A"}, "i", "P", 2021, Money::of(100));
+    Budget titleBudget(Money::of(1000));
+    AcquisitionManager titleAcq(titleCatalog, titleBudget);
+    titleAcq.setTitleLimit(ResourceCategory::Book, 1);
+    auto titleFailed = titleAcq.processBatch({{"T1", 1}, {"T2", 1}}, true);
+    CHECK(titleFailed.size() == 2);
+    CHECK(!titleFailed[0].approved && !titleFailed[1].approved);
+    CHECK(titleBudget.spent() == Money::of(0));
+    CHECK(titleCatalog.holdings("T1") == 0 && titleCatalog.holdings("T2") == 0);
+
+    // Test cumulative department budget: the entire batch must be rejected.
+    Catalog deptCatalog;
+    deptCatalog.emplace<Book>("D1", "Department Book One", std::vector<std::string>{"A"}, "i", "P", 2020, Money::of(100));
+    deptCatalog.emplace<Book>("D2", "Department Book Two", std::vector<std::string>{"A"}, "i", "P", 2021, Money::of(100));
+    Budget deptDefault(Money::of(1000));
+    AcquisitionManager deptAcq(deptCatalog, deptDefault);
+    deptAcq.setDepartmentBudget("Physics", Money::of(150));
+    auto deptFailed = deptAcq.processBatch({{"D1", 1, "Physics"}, {"D2", 1, "Physics"}}, true);
+    CHECK(deptFailed.size() == 2);
+    CHECK(!deptFailed[0].approved && !deptFailed[1].approved);
+    CHECK(deptAcq.departmentBudget("Physics").spent() == Money::of(0));
+    CHECK(deptCatalog.holdings("D1") == 0 && deptCatalog.holdings("D2") == 0);
+
+
+}
 int main() {
     testMoney();
     testResourcesAndCost();
